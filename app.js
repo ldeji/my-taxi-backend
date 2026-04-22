@@ -1,183 +1,153 @@
-import express from 'express'; // 1. Use express instead of http
-import { calculateFare } from './math.js'; // Import the fare calculation function from math.js
+import 'dotenv/config';
+import express from 'express';
+import mongoose from 'mongoose';
+import Booking from './Booking.js'; 
+import { calculateFare } from './math.js';
+import cors from 'cors'; // npm install cors was installed to allow cross-origin requests from the React frontend
 
+const app = express();
+app.use(cors()); // This allows the Frontend to access the API!
 
-const bookings = []; // This will act as our temporary database
-const app = express(); // 2. Initialize the express "app"
-app.use(express.json()); // This allows Express to read JSON in the "Body" of a request. Posting data to the server is common in real apps.
 const PORT = 3000;
 
-// 3. Define your routes (No more if/else!)
-// Home Page
+// Middleware
+app.use(express.json());
+
+// 1. DATABASE CONNECTION
+// We use the variable from .env file
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ Connected to MongoDB!"))
+    .catch(err => console.error("❌ MongoDB Connection Error:", err.message));
+
+// 2. MOCK DATA (Taxi Fleet)
+const taxiFleet = [
+    { id: 1, type: "Sedan", pricePerKm: 800, color: "White", available: true },
+    { id: 2, type: "SUV", pricePerKm: 600, color: "Red", available: false },
+    { id: 3, type: "BRT", pricePerKm: 500, color: "Arsh", available: true },
+    { id: 4, type: "Keke", pricePerKm: 300, color: "Yellow", available: true },
+    { id: 5, type: "Danfo", pricePerKm: 300, color: "Yellow", available: true },
+    { id: 6, type: "Okada", pricePerKm: 200, color: "Green", available: true }
+];
+
+// --- HTML ROUTES (For Humans) ---
+
 app.get('/', (req, res) => {
-    // res.send automatically sets the header and ends the response!
-    res.send('<h1>Welcome to Akano Taxi Company!</h1><h1>Welcome To Our Home Page. - Happy Travelling!</h1>');
+    res.send('<h1>Welcome to Akano Taxi Company!</h1><h2>Home Page - Happy Travelling!</h2><h4>The Young Shall Grow!</h4>');
 });
 
-// About Page
 app.get('/about', (req, res) => {
-    res.send('<h1>Welcome to the About Page!</h1><p>We provide excellent taxi services!</p>');
+    res.send('<h1>About Page</h1><p>We provide excellent taxi services in all nations!</p>');
 });
 
-// Contact Page
 app.get('/contact', (req, res) => {
     res.send('<h1>Contact Us</h1><p>Email: akanotaxi@service.com</p>');
 });
 
-// Fleet Page. Sends HTML (for humans to read).
 app.get('/fleet', (req, res) => {
-    res.send('<h1>Our Fleet</h1><p>Check out our fleet of taxis!</p><ul><li>Taxi 1: Sedan</li><li>Taxi 2: SUV</li><li>Taxi 3: Van</li><li>Taxi 4: Keke Napep</li><li>Taxi 5: Okada</li></ul>');
+    res.send('<h1>Our Fleet</h1><ul><li>Sedan</li><li>SUV</li><li>Van</li><li>Keke Napep</li><li>Danfo</li><li>Okada</li></ul>');
 });
 
-// A "Database" of your taxis (normally this comes from MongoDB)
-const taxiFleet = [
-    { id: 1, type: "Sedan", pricePerKm: 2.5, available: true },
-    { id: 2, type: "SUV", pricePerKm: 4.0, available: false },
-    { id: 3, type: "Van", pricePerKm: 5.5, available: true },
-    { id: 4, type: "Keke", pricePerKm: 1.0, available: true },
-    { id: 5, type: "Danfo", pricePerKm: 2.9, available: true }
-];
+// --- API ROUTES (For Data/React) ---
 
-// READING DATA (GET) - API Routes
-// JSON API Route  Sends JSON (for React/Apps to read).
+// Get all Taxis
 app.get('/api/fleet', (req, res) => {
-    // res.json() is a special Express function!
-    // It converts the JavaScript array/object into a JSON string automatically.
     res.json(taxiFleet);
 });
 
-// Get a SINGLE taxi by ID
+// Get a single taxi by ID
 app.get('/api/fleet/:taxiId', (req, res) => {
-    // 1. Grab the ID from the URL
-    // req.params.taxiId matches the ":taxiId" in the route string
-    const id = req.params.taxiId;
-
-    // 2. Find the taxi by ID in our "database" array
-    const taxi = taxiFleet.find(t => t.id === parseInt(id));
-
-    // 3. Logic: What if the taxi doesn't exist?
-    if (!taxi) {
-        return res.status(404).json({ message: "Taxi not found! Try ID 1, 2, 3, or 4." });
-    }
-
-    // 4. Send the specific taxi data
+    const taxi = taxiFleet.find(t => t.id === parseInt(req.params.taxiId));
+    if (!taxi) return res.status(404).json({ message: "Taxi not found!" });
     res.json(taxi);
 });
 
-
-
-// Get a fare estimate for a ride
+// Fare Estimator
 app.get('/api/estimate/:type/:distance', (req, res) => {
-    // 1. Get the data from the URL
     const type = req.params.type.toLowerCase();
     const distance = parseFloat(req.params.distance);
-
-    // 2. Look up the taxi to get its price
     const taxi = taxiFleet.find(t => t.type.toLowerCase() === type);
 
-    // 3. Validation: Check if taxi exists and distance is a number
-    if (!taxi) {
-        return res.status(404).json({ error: "Invalid taxi type. Please type Sedan, SUV, or Van." });
-    }
-    if (isNaN(distance)) {
-        return res.status(400).json({ error: "Distance must be a number." });
-    }
+    if (!taxi) return res.status(404).json({ error: "Invalid taxi type." });
+    if (isNaN(distance)) return res.status(400).json({ error: "Distance must be a number." });
 
-    // 4. Use our Math Module to calculate the cost
     const totalFare = calculateFare(taxi.pricePerKm, distance);
-
-    // 5. Send back a "Receipt" JSON
     res.json({
-        confirmation: "Estimate Fare Calculated",
-        details: {
-            vehicle: taxi.type,
-            distance: `${distance} km`,
-            pricePerKm: `#${taxi.pricePerKm}`,
-            totalEstimate: `#${totalFare.toFixed(2)}`
-        },
-        notice: "Prices may vary based on traffic."
+        confirmation: "Estimate Calculated",
+        details: { vehicle: taxi.type, distance: `${distance} km`, totalEstimate: `#${totalFare.toFixed(2)}` }
     });
 });
 
-
-
-// Search for a specific type of vehicle
-app.get('/api/search/:vehicleType', (req, res) => {
-    const type = req.params.vehicleType.toLowerCase();
-    
-    // Filter the fleet to find matches
-    const matches = taxiFleet.filter(t => t.type.toLowerCase() === type);
-
-    if (matches.length === 0) {
-        return res.status(404).json({ message: `No ${type}s found in our fleet. Try Sedan, SUV, Van, Danfo or Keke.` });
-    }
-
-    res.json(matches);
-});
-
-
-// A flexible search route using Query Parameters . The "Professional Search" way
+// Search Taxis (Query or Params)
 app.get('/api/search', (req, res) => {
-    // req.query grabs everything after the "?"
-    const searchType = req.query.type; 
+    const searchType = req.query.type;
+    if (!searchType) return res.json(taxiFleet);
+    const results = taxiFleet.filter(t => t.type.toLowerCase().includes(searchType.toLowerCase()));
+    res.json(results);
+});
 
-    if (!searchType) {
-        return res.json(taxiFleet); // If no search, show everything
+// --- BOOKING ROUTES (Database) ---
+
+// POST: Create a new booking in MongoDB
+app.post('/api/bookings', async (req, res) => {
+    try {
+        const { passengerName, pickupLocation, taxiId } = req.body;
+        const newBooking = new Booking({ passengerName, pickupLocation, taxiId });
+        const savedBooking = await newBooking.save();
+        res.status(201).json(savedBooking);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-
-    const results = taxiFleet.filter(t => 
-        t.type.toLowerCase().includes(searchType.toLowerCase())
-    );
-
-    res.json({
-        resultsFound: results.length,
-        data: results
-    });
 });
 
-
-// POST: Book a Taxi
-app.post('/api/bookings', (req, res) => {
-    // 1. Get the data sent by the user from req.body
-    const { passengerName, pickupLocation, taxiId } = req.body;
-
-    // 2. Simple Validation: Make sure they sent all info
-    if (!passengerName || !pickupLocation || !taxiId) {
-        return res.status(400).json({ error: "Please provide name, pickup, and taxiId." });
+// GET: View all bookings from MongoDB
+app.get('/api/bookings', async (req, res) => {
+    try {
+        const allBookings = await Booking.find();
+        res.json(allBookings);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch bookings" });
     }
-
-    // 3. Create a new booking object
-    const newBooking = {
-        bookingId: bookings.length + 1,
-        passengerName,
-        pickupLocation,
-        taxiId,
-        status: "Confirmed",
-        bookedAt: new Date()
-    };
-
-    // 4. "Save" it to our array
-    bookings.push(newBooking);
-
-    // 5. Send back a 201 (Created) status and the confirmation
-    res.status(201).json({
-        message: "Booking successful!",
-        data: newBooking
-    });
 });
 
-// Also, let's add a GET route so we can see all bookings
-app.get('/api/bookings', (req, res) => {
-    res.json(bookings);
+
+// UPDATE: Change a booking's location or status. Use PATCH method
+app.patch('/api/bookings/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const updates = req.body; // e.g., { pickupLocation: "New Address" }
+
+        // Find the booking and update it with the new data
+        const updatedBooking = await Booking.findByIdAndUpdate(id, updates, { new: true });
+
+        if (!updatedBooking) return res.status(404).json({ error: "Booking not found" });
+
+        res.json({ message: "Booking updated!", data: updatedBooking });
+    } catch (error) {
+        res.status(400).json({ error: "Invalid ID or update data" });
+    }
 });
 
-// 404 - Not Found
-// Express goes from top to bottom. If it doesn't match the routes above, it hits this.
+
+// DELETE: Cancel a booking
+app.delete('/api/bookings/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const deletedBooking = await Booking.findByIdAndDelete(id);
+
+        if (!deletedBooking) return res.status(404).json({ error: "Booking not found" });
+
+        res.json({ message: "Booking cancelled successfully" });
+    } catch (error) {
+        res.status(400).json({ error: "Invalid ID format" });
+    }
+});
+
+// 404 Handler
 app.use((req, res) => {
     res.status(404).send('<h1>404: Page Not Found</h1>');
 });
 
-// 4. Start the server
-app.listen(PORT, () => {
+// Start Server
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Express server is running at http://localhost:${PORT}`);
 });
