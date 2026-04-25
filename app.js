@@ -1,9 +1,13 @@
-import 'dotenv/config';
-import express from 'express';
-import mongoose from 'mongoose';
-import Booking from './Booking.js'; 
-import { calculateFare } from './math.js';
+import 'dotenv/config';  // Load environment variables from .env file (like MONGO_URI)
+import express from 'express'; // For creating the Express server and handling routes
+import mongoose from 'mongoose';  // For MongoDB connection and schema management
+import Booking from './Booking.js'; // Booking model for MongoDB interactions
+import { calculateFare } from './math.js'; // A simple utility function to calculate fare based on price per km and distance. This keeps our code clean and modular.
 import cors from 'cors'; // npm install cors was installed to allow cross-origin requests from the React frontend
+import bcrypt from 'bcryptjs';  // For password hashing
+import jwt from 'jsonwebtoken'; // For token generation and verification
+import User from './User.js';  // User model for authentication and role management
+
 
 const app = express();
 app.use(cors()); // This allows the Frontend to access the API!
@@ -30,7 +34,6 @@ const taxiFleet = [
 ];
 
 // --- HTML ROUTES (For Humans) ---
-
 app.get('/', (req, res) => {
     res.send('<h1>Welcome to Akano Taxi Company!</h1><h2>Home Page - Happy Travelling!</h2><h4>The Young Shall Grow!</h4>');
 });
@@ -140,6 +143,33 @@ app.delete('/api/bookings/:id', async (req, res) => {
     } catch (error) {
         res.status(400).json({ error: "Invalid ID format" });
     }
+});
+
+
+// REGISTER USER
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ name, email, password: hashedPassword, role });
+        await newUser.save();
+        res.status(201).json({ message: "User Created" });
+    } catch (err) {
+        res.status(400).json({ error: "Email already exists" });
+    }
+});
+
+// LOGIN USER
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Wrong password" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secret');
+    res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
 });
 
 // 404 Handler
