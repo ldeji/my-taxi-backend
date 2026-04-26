@@ -93,8 +93,8 @@ app.get('/api/search', (req, res) => {
 // POST: Create a new booking in MongoDB
 app.post('/api/bookings', async (req, res) => {
     try {
-        const { passengerName, pickupLocation, taxiId } = req.body;
-        const newBooking = new Booking({ passengerName, pickupLocation, taxiId });
+        const { passengerName, pickupLocation, destination, taxiId } = req.body;
+        const newBooking = new Booking({ passengerName, pickupLocation, destination, taxiId });
         const savedBooking = await newBooking.save();
         res.status(201).json(savedBooking);
     } catch (error) {
@@ -170,6 +170,16 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secret');
     res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+});
+
+// GET ALL USERS (For Admin Dashboard)
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await User.find({}, '-password');
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // 404 Handler
