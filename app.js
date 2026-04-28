@@ -15,7 +15,7 @@ app.use(cors()); // This allows the Frontend to access the API!
 const PORT = 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Allows up to 10MB (enough for a photo)
 
 // 1. DATABASE CONNECTION
 // We use the variable from .env file
