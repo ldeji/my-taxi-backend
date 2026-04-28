@@ -89,28 +89,29 @@ app.get('/api/search', (req, res) => {
 });
 
 // --- BOOKING ROUTES (Database) ---
-
-// POST: Create a new booking in MongoDB
+// POST: Create booking with User ID. POST: Create a new booking in MongoDB
 app.post('/api/bookings', async (req, res) => {
     try {
-        const { passengerName, pickupLocation, destination, taxiId } = req.body;
-        const newBooking = new Booking({ passengerName, pickupLocation, destination, taxiId });
-        const savedBooking = await newBooking.save();
-        res.status(201).json(savedBooking);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        const { userId, passengerName, pickupLocation, destination, taxiId } = req.body;
+        const newBooking = new Booking({ userId, passengerName, pickupLocation, destination, taxiId });
+        await newBooking.save();
+        res.status(201).json(newBooking);
+    } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-// GET: View all bookings from MongoDB
+
+// GET: Filtered Bookings. GET: View all bookings from MongoDB
 app.get('/api/bookings', async (req, res) => {
     try {
-        const allBookings = await Booking.find();
-        res.json(allBookings);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch bookings" });
-    }
-});
+        const { userId, role } = req.query; // Get info from frontend query
+        
+        // LOGIC: If admin, find all. If user, find only theirs.
+        const filter = role === 'admin' ? {} : { userId: userId };
+        const bookings = await Booking.find(filter);
+        
+        res.json(bookings);
+    } catch (err) { res.status(500).json({ error: "Failed to fetch" }); }
+})
 
 
 // UPDATE: Change a booking's location or status. Use PATCH method
