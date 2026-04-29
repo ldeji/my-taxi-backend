@@ -9,14 +9,12 @@ import jwt from 'jsonwebtoken'; // For token generation and verification
 import User from './User.js';  // User model for authentication and role management
 
 const app = express();
-app.use(cors()); // This allows the Frontend to access the API!
-
-const PORT = 3000;
-
 // Middleware
 app.use(express.json({ limit: '10mb' })); // Allows up to 10MB (enough for a photo)
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cors()); // This allows the Frontend to access the API!
 
+const PORT = 3000;
 // 1. DATABASE CONNECTION
 // We use the variable from .env file
 mongoose.connect(process.env.MONGO_URI)
@@ -165,6 +163,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
 // REGISTER USER
 app.post('/api/auth/register', async (req, res) => {
     try {
+        console.log("Image Data received:", req.body.profileImage ? "YES (Large Data)" : "NO (Empty)");
         const { name, email, password, role, profileImage } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({ name, email, password: hashedPassword, role, profileImage: profileImage || ""  });
