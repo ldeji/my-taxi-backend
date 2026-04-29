@@ -130,21 +130,27 @@ app.patch('/api/bookings/:id', async (req, res) => {
 });
 
     // UPDATE USER PROFILE (Change Photo)
-   app.patch('/api/users/:id', async (req, res) => {
+  app.patch('/api/users/:id', async (req, res) => {
+    // This log helps us see if the data actually reached the server
+    console.log("PATCH request received for ID:", req.params.id);
+    console.log("Image data present?", req.body.profileImage ? "YES" : "NO");
+
     try {
         const { profileImage } = req.body;
-        
-        // Find user by ID and update ONLY the profileImage
         const updatedUser = await User.findByIdAndUpdate(
             req.params.id, 
             { profileImage }, 
-            { new: true } // This returns the NEW data, not the old data
-        ).select('-password'); // Don't send the password back to the phone
+            { new: true }
+        ).select('-password');
 
-        if (!updatedUser) return res.status(404).json({ error: "User not found" });
+        if (!updatedUser) {
+            console.log("Update failed: User not found in DB");
+            return res.status(404).json({ error: "User not found" });
+        }
 
         res.json(updatedUser);
     } catch (err) {
+        console.error("Database Error:", err.message);
         res.status(500).json({ error: "Update failed" });
     }
 });
