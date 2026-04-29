@@ -130,20 +130,24 @@ app.patch('/api/bookings/:id', async (req, res) => {
 });
 
     // UPDATE USER PROFILE (Change Photo)
-    app.patch('/api/users/:id', async (req, res) => {
-        try {
-            const { profileImage } = req.body;
-            const updatedUser = await User.findByIdAndUpdate(
-                req.params.id, 
-                { profileImage }, 
-                { new: true }
-            ).select('-password');
-            
-            res.json(updatedUser);
-        } catch (err) {
-            res.status(500).json({ error: "Update failed" });
-        }
-    });
+   app.patch('/api/users/:id', async (req, res) => {
+    try {
+        const { profileImage } = req.body;
+        
+        // Find user by ID and update ONLY the profileImage
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.id, 
+            { profileImage }, 
+            { new: true } // This returns the NEW data, not the old data
+        ).select('-password'); // Don't send the password back to the phone
+
+        if (!updatedUser) return res.status(404).json({ error: "User not found" });
+
+        res.json(updatedUser);
+    } catch (err) {
+        res.status(500).json({ error: "Update failed" });
+    }
+});
 
 // DELETE: Cancel a booking
 app.delete('/api/bookings/:id', async (req, res) => {
