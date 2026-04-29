@@ -165,9 +165,9 @@ app.delete('/api/bookings/:id', async (req, res) => {
 // REGISTER USER
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, profileImage } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email, password: hashedPassword, role });
+        const newUser = new User({ name, email, password: hashedPassword, role, profileImage: profileImage || ""  });
         await newUser.save();
         res.status(201).json({ message: "User Created" });
     } catch (err) {
