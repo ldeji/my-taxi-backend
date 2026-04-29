@@ -98,19 +98,20 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 
-// GET: Filtered Bookings. GET: View all bookings from MongoDB
+// GET: Fetch Bookings (Updated to include User Photo) GET: View all bookings from MongoDB
 app.get('/api/bookings', async (req, res) => {
     try {
-        const { userId, role } = req.query; // Get info from frontend query
-        
-        // LOGIC: If admin, find all. If user, find only theirs.
+        const { userId, role } = req.query;
         const filter = role === 'admin' ? {} : { userId: userId };
-        const bookings = await Booking.find(filter);
+
+        // .populate('userId', 'profileImage') tells MongoDB to grab the photo of the user who booked
+        const bookings = await Booking.find(filter).populate('userId', 'profileImage');
         
         res.json(bookings);
-    } catch (err) { res.status(500).json({ error: "Failed to fetch" }); }
-})
-
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch bookings" });
+    }
+});
 
 // UPDATE: Change a booking's location or status. Use PATCH method
 app.patch('/api/bookings/:id', async (req, res) => {
