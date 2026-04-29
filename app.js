@@ -131,6 +131,21 @@ app.patch('/api/bookings/:id', async (req, res) => {
     }
 });
 
+    // UPDATE USER PROFILE (Change Photo)
+    app.patch('/api/users/:id', async (req, res) => {
+        try {
+            const { profileImage } = req.body;
+            const updatedUser = await User.findByIdAndUpdate(
+                req.params.id, 
+                { profileImage }, 
+                { new: true }
+            ).select('-password');
+            
+            res.json(updatedUser);
+        } catch (err) {
+            res.status(500).json({ error: "Update failed" });
+        }
+    });
 
 // DELETE: Cancel a booking
 app.delete('/api/bookings/:id', async (req, res) => {
@@ -170,7 +185,18 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: "Wrong password" });
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secret');
-    res.json({ token, user: { id: user._id, name: user.name, role: user.role, profileImage: user.profileImage } });
+    
+    // SEND EVERYTHING TO THE PHONE HERE:
+    res.json({ 
+        token, 
+        user: { 
+            id: user._id, 
+            name: user.name, 
+            email: user.email,
+            role: user.role,
+            profileImage: user.profileImage // <--- THIS LINE FIXES THE DISPLAY
+        } 
+    });
 });
 
 // GET ALL USERS (For Admin Dashboard)
